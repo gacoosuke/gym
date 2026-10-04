@@ -1,0 +1,18 @@
+name = "souvenirs-physiques"
+pages_build_output_dir = "./dist/public"
+compatibility_date = "2024-09-01"
+
+[vars]
+SESSION_TTL_DAYS = "3650"
+MAX_UPLOAD_BYTES = "8388608"
+STORAGE_LIMIT_BYTES = "10737418240"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "souvenirs-physiques"
+database_id = "d4aa6495-61f7-454a-aabe-17346eac22a6"
+migrations_dir = "./migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "souvenirs-physiques"

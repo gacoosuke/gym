@@ -1,0 +1,588 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API privée de l’album partagé Souvenirs physiques
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: État du service
+  - name: account
+    description: Connexion et membres
+  - name: memories
+    description: Photos, calendrier et réactions
+  - name: measurements
+    description: Mensurations facultatives
+  - name: storage
+    description: Utilisation du stockage
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Vérifier le service
+      responses:
+        "200":
+          description: Service disponible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /members:
+    get:
+      operationId: getMembers
+      tags: [account]
+      summary: Lister les membres
+      responses:
+        "200":
+          description: Membres du groupe
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+  /session:
+    post:
+      operationId: createSession
+      tags: [account]
+      summary: Ouvrir une session mémorisée sur cet appareil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberLogin"
+      responses:
+        "200":
+          description: Session créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Code incorrect
+    delete:
+      operationId: deleteSession
+      tags: [account]
+      summary: Fermer la session de cet appareil
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session fermée
+  /session/current:
+    get:
+      operationId: getCurrentSession
+      tags: [account]
+      summary: Vérifier la session mémorisée
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Membre de la session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "401":
+          description: Session absente ou expirée
+  /setup/pins:
+    post:
+      operationId: configurePins
+      tags: [account]
+      summary: Configurer les trois codes PIN une seule fois
+      security:
+        - setupSecret: []
+      parameters:
+        - name: x-setup-secret
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinSetupInput"
+      responses:
+        "200":
+          description: Les codes ont été configurés
+        "401":
+          description: Secret d’initialisation invalide
+        "409":
+          description: Les codes sont déjà configurés
+  /media:
+    get:
+      operationId: getMedia
+      tags: [memories]
+      summary: Lister les photos par membre et période
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: memberId
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          description: Date incluse au format ISO
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Date incluse au format ISO
+          schema: { type: string, format: date }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: Photos correspondant aux filtres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Photo"
+    post:
+      operationId: uploadMedia
+      tags: [memories]
+      summary: Ajouter une photo avec sa date de prise réelle
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PhotoUploadInput"
+      responses:
+        "201":
+          description: Photo enregistrée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+  /media/{id}:
+    patch:
+      operationId: updateMedia
+      tags: [memories]
+      summary: Corriger la date ou la légende d’une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoUpdate"
+      responses:
+        "200":
+          description: Photo mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+    delete:
+      operationId: deleteMedia
+      tags: [memories]
+      summary: Supprimer une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Photo supprimée
+  /media/{id}/content:
+    get:
+      operationId: getMediaContent
+      tags: [memories]
+      summary: Lire le fichier privé d’une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Image protégée par la session
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
+            image/avif:
+              schema: { type: string, format: binary }
+  /calendar:
+    get:
+      operationId: getCalendar
+      tags: [memories]
+      summary: Récupérer les photos d’une année pour le calendrier
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1900, maximum: 2200 }
+      responses:
+        "200":
+          description: Jours contenant un ou plusieurs souvenirs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarDay"
+  /media/{id}/comments:
+    get:
+      operationId: getComments
+      tags: [memories]
+      summary: Lire les commentaires d’une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Commentaires de la photo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+    post:
+      operationId: createComment
+      tags: [memories]
+      summary: Commenter une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentInput"
+      responses:
+        "201":
+          description: Commentaire ajouté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+  /media/{id}/reactions:
+    get:
+      operationId: getReactions
+      tags: [memories]
+      summary: Lire les réactions d’une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Réactions actuelles et état du membre connecté
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReactionCount"
+    put:
+      operationId: setReaction
+      tags: [memories]
+      summary: Réagir à une photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionInput"
+      responses:
+        "200":
+          description: Réactions mises à jour
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReactionCount"
+    delete:
+      operationId: deleteReaction
+      tags: [memories]
+      summary: Retirer sa réaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionInput"
+      responses:
+        "204":
+          description: Réaction retirée
+  /measurements:
+    get:
+      operationId: getMeasurements
+      tags: [measurements]
+      summary: Lire les mensurations facultatives d’un membre
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: memberId
+          in: query
+          required: true
+          schema: { type: string, enum: [ali, zakaria, idrissa] }
+      responses:
+        "200":
+          description: Historique facultatif
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Measurement"
+        "403":
+          description: Les mensurations d’un autre membre ne sont pas accessibles
+    post:
+      operationId: createMeasurement
+      tags: [measurements]
+      summary: Enregistrer une mensuration facultative
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementInput"
+      responses:
+        "201":
+          description: Mensuration ajoutée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+  /storage:
+    get:
+      operationId: getStorage
+      tags: [storage]
+      summary: Consulter le stockage utilisé
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Espace photo utilisé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageUsage"
+  /export:
+    get:
+      operationId: getExport
+      tags: [storage]
+      summary: Exporter toutes les métadonnées de l’album
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Export JSON sans les fichiers image
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exportedAt, members, media, measurements, comments, reactions]
+                properties:
+                  exportedAt: { type: string, format: date-time }
+                  members:
+                    type: array
+                    items: { $ref: "#/components/schemas/Member" }
+                  media:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  measurements:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  comments:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  reactions:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    setupSecret:
+      type: apiKey
+      in: header
+      name: x-setup-secret
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string }
+    Member:
+      type: object
+      required: [id, name, color]
+      properties:
+        id: { type: string, enum: [ali, zakaria, idrissa] }
+        name: { type: string }
+        color: { type: string }
+    MemberLogin:
+      type: object
+      required: [memberId, pin]
+      properties:
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        pin: { type: string, minLength: 6, maxLength: 12 }
+    PinSetupInput:
+      type: object
+      required: [pins]
+      properties:
+        pins:
+          type: object
+          required: [ali, zakaria, idrissa]
+          properties:
+            ali: { type: string, pattern: "^[0-9]{6,12}$" }
+            zakaria: { type: string, pattern: "^[0-9]{6,12}$" }
+            idrissa: { type: string, pattern: "^[0-9]{6,12}$" }
+    AuthSession:
+      type: object
+      required: [token, expiresAt, member]
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        member: { $ref: "#/components/schemas/Member" }
+    Photo:
+      type: object
+      required: [id, memberId, memberName, taggedMemberIds, takenAt, uploadedAt, contentType, sizeBytes, contentPath]
+      properties:
+        id: { type: string }
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        memberName: { type: string }
+        taggedMemberIds:
+          type: array
+          items: { type: string, enum: [ali, zakaria, idrissa] }
+        takenAt: { type: string, format: date-time }
+        uploadedAt: { type: string, format: date-time }
+        caption: { type: ["string", "null"] }
+        contentType: { type: string }
+        sizeBytes: { type: integer }
+        contentPath: { type: string }
+    PhotoUploadInput:
+      type: object
+      required: [file, memberId, takenAt]
+      properties:
+        file: { type: string, format: binary }
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        takenAt: { type: string, format: date-time }
+        taggedMemberIds:
+          type: string
+          description: Tableau JSON d’identifiants de membres
+        caption: { type: string, maxLength: 500 }
+    PhotoUpdate:
+      type: object
+      properties:
+        takenAt: { type: string, format: date-time }
+        caption: { type: ["string", "null"], maxLength: 500 }
+        taggedMemberIds:
+          type: array
+          items: { type: string, enum: [ali, zakaria, idrissa] }
+    CalendarDay:
+      type: object
+      required: [date, memberIds, photoCount]
+      properties:
+        date: { type: string, format: date }
+        memberIds:
+          type: array
+          items: { type: string, enum: [ali, zakaria, idrissa] }
+        photoCount: { type: integer }
+    Comment:
+      type: object
+      required: [id, mediaId, memberId, memberName, text, createdAt]
+      properties:
+        id: { type: string }
+        mediaId: { type: string }
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        memberName: { type: string }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+    CommentInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 500 }
+    ReactionInput:
+      type: object
+      required: [emoji]
+      properties:
+        emoji: { type: string, enum: ["💪", "🔥", "🦍", "📈"] }
+    ReactionCount:
+      type: object
+      required: [emoji, count, mine]
+      properties:
+        emoji: { type: string }
+        count: { type: integer }
+        mine: { type: boolean }
+    Measurement:
+      type: object
+      required: [id, memberId, measuredAt]
+      properties:
+        id: { type: string }
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        measuredAt: { type: string, format: date-time }
+        weightKg: { type: ["number", "null"] }
+        armCm: { type: ["number", "null"] }
+        chestCm: { type: ["number", "null"] }
+        waistCm: { type: ["number", "null"] }
+        thighCm: { type: ["number", "null"] }
+    MeasurementInput:
+      type: object
+      required: [memberId, measuredAt]
+      properties:
+        memberId: { type: string, enum: [ali, zakaria, idrissa] }
+        measuredAt: { type: string, format: date-time }
+        weightKg: { type: ["number", "null"], minimum: 0, maximum: 500 }
+        armCm: { type: ["number", "null"], minimum: 0, maximum: 200 }
+        chestCm: { type: ["number", "null"], minimum: 0, maximum: 300 }
+        waistCm: { type: ["number", "null"], minimum: 0, maximum: 300 }
+        thighCm: { type: ["number", "null"], minimum: 0, maximum: 200 }
+    StorageUsage:
+      type: object
+      required: [usedBytes, limitBytes]
+      properties:
+        usedBytes: { type: integer }
+        limitBytes: { type: integer }
+

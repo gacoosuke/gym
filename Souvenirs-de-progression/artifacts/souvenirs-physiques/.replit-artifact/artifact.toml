@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/souvenirs-physiques/"
+title = "Souvenirs physiques"
+description = "Une application partagée par Ali, Zakaria et Idrissa pour conserver, retrouver et comparer leurs photos de progression, avec calendrier perpétuel, galerie datée et synchronisation entre le site et l’APK."
+version = "1.0.0"
+id = "artifacts/souvenirs-physiques"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/souvenirs-physiques/" ]
+localPort = 23744
+
+[services.development]
+run = "pnpm --filter @workspace/souvenirs-physiques run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/souvenirs-physiques", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/souvenirs-physiques/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23744"
+BASE_PATH = "/souvenirs-physiques/"

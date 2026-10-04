@@ -1,0 +1,37 @@
+
+
+
+https://photos.app.goo.gl/UFXze18E9mNcJrA59
+
+
+Voici l'archive ZIP contenant le code de mon application "Souvenirs Physiques" (React / Cloudflare Pages / D1 / R2).
+
+J'aimerais que tu améliores le projet sur plusieurs axes prioritaires :
+
+1. Extraction EXIF & Support Multi-formats Natif :
+- Garantis la prise en charge native de tous les formats d'image courants : .heic, .heif, .jpg, .jpeg, .png, .webp.
+- Utilise une bibliothèque comme ExifReader/heic2any pour extraire en priorité la vraie date de prise de vue EXIF (DateTimeOriginal) lors de l'upload. 
+- La date de modification du fichier (file.lastModified) ne doit être utilisée qu'en dernier recours absolu.
+
+2. Importation en masse (Bulk Import) dans "Tout le groupe" :
+- Dans la photothèque "Tout le groupe", ajoute un mode d'importation en masse capable de gérer jusqu'à 600 photos simultanément (avec barre de progression, chunking par lots pour ne pas faire planter le navigateur ou dépasser les limites de l'API Cloudflare).
+- Les photos importées via ce mode ne sont assignées à personne par défaut (statut "Non attribué").
+- Ajoute un filtre/badge visuel clair "À attribuer" sur les photos sans nom.
+- Depuis la photothèque globale, permets la sélection individuelle ou groupée de photos pour les attribuer manuellement à un membre ("Ali", "Idrissa", "Zakaria"). L'attribution doit automatiquement ajouter la photo dans la photothèque privée du membre concerné.
+
+3. Optimisation des Performances & Chargement Immédiat :
+- Améliore drastiquement la vitesse d'affichage des photos dans la photothèque et le calendrier.
+- Génère ou compresse des miniatures (thumbnails) légères lors de l'upload pour éviter de charger les fichiers HD dans les grilles.
+- Implémente le lazy-loading (chargement différé) et la virtualisation de liste si nécessaire pour fluidifier le défilement.
+
+4. Design & Expérience Utilisateur (UI/UX) :
+- Modernise l'aspect général de l'application (animations fluides, composants plus épurés, meilleure lisibilité du calendrier et mise en valeur des jours contenant des photos).
+- Optimise l'expérience mobile (PWA / conversion APK natif) avec des retours tactiles adaptés, des composants responsive et un manifest PWA parfait pour la transformation en APK via Bubblewrap/TWA.
+
+5. Fonctionnalités bonus / Améliorations suggérées :
+- Ajoute une recherche/filtrage par date et par membre.
+- Ajoute un mode de gestion des erreurs si un upload échoue au milieu d'un lot de 600 photos (possibilité de reprendre l'envoi sans tout recommencer).
+
+Analyse le code fourni dans le ZIP et applique ces modifications de manière propre et typée (TypeScript strict).
+
+il doit supporer tous les type de video egalment 

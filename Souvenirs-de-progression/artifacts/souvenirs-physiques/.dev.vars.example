@@ -1,0 +1,2 @@
+# Copy to .dev.vars and replace the value with a long random local-only string.
+SETUP_SECRET=replace-with-a-long-random-local-secret
